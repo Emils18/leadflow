@@ -24,6 +24,14 @@ import {
   X,
   ChevronsLeft,
   ChevronsRight,
+  Plus,
+  Send,
+  Save,
+  ShieldCheck,
+  Building2,
+  CheckCircle2,
+  Trash2,
+  Edit3,
 } from 'lucide-react';
 
 const navigationItems = [
@@ -37,16 +45,26 @@ const navigationItems = [
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
-function PlaceholderPage({ title }) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
-      <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
-      <p className="text-sm text-slate-500 mt-2">
-        This module is shown in the Figma design but is not yet implemented in the current codebase.
-      </p>
-    </div>
-  );
-}
+const defaultTemplates = [
+  {
+    id: 1,
+    name: 'Initial Outreach',
+    subject: 'Quick question about your current workflow',
+    body: 'Hi {{first_name}},\n\nI noticed your company may benefit from a better CRM workflow. I would love to connect and share how LeadFlow can help your team.\n\nBest regards,',
+  },
+  {
+    id: 2,
+    name: 'Follow-up Email',
+    subject: 'Following up on my previous email',
+    body: 'Hi {{first_name}},\n\nI just wanted to follow up and check if you had time to review my previous message.\n\nThank you,',
+  },
+  {
+    id: 3,
+    name: 'Demo Invitation',
+    subject: 'Would you like to schedule a quick demo?',
+    body: 'Hi {{first_name}},\n\nI would be happy to walk you through a short demo and show how LeadFlow can support your outreach process.\n\nBest regards,',
+  },
+];
 
 function DashboardShell() {
   const { user, logout } = useAuth();
@@ -62,12 +80,37 @@ function DashboardShell() {
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const [emailTemplates, setEmailTemplates] = useState(defaultTemplates);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [emailHistory, setEmailHistory] = useState([]);
+
+  const [teamUsers, setTeamUsers] = useState([
+    {
+      id: 1,
+      name: 'Emelio Innovations',
+      email: user?.email || 'emelio@cubetech.com',
+      role: 'Admin',
+      status: 'Active',
+    },
+    {
+      id: 2,
+      name: 'Alex Rivera',
+      email: 'alex@cubetech.com',
+      role: 'Staff',
+      status: 'Active',
+    },
+  ]);
+
   const activePage = navigationItems.find((item) => item.key === tab);
 
-  const userInitials = `${user?.first_name?.charAt(0) || ''}${user?.last_name?.charAt(0) || ''}`.toUpperCase() || 'EI';
+  const userInitials =
+    `${user?.first_name?.charAt(0) || ''}${user?.last_name?.charAt(0) || ''}`.toUpperCase() ||
+    'EI';
 
   const displayName = `${user?.first_name || 'emelio'} ${user?.last_name || 'Innovations'}`;
 
@@ -76,10 +119,26 @@ function DashboardShell() {
 
     if (!value) return [];
 
-    return navigationItems.filter((item) =>
-      item.label.toLowerCase().includes(value)
-    );
-  }, [searchText]);
+    const moduleResults = navigationItems
+      .filter((item) => item.label.toLowerCase().includes(value))
+      .map((item) => ({
+        type: 'module',
+        key: item.key,
+        label: item.label,
+        icon: item.icon,
+      }));
+
+    const templateResults = emailTemplates
+      .filter((item) => item.name.toLowerCase().includes(value))
+      .map((item) => ({
+        type: 'template',
+        key: 'templates',
+        label: item.name,
+        icon: FileText,
+      }));
+
+    return [...moduleResults, ...templateResults];
+  }, [searchText, emailTemplates]);
 
   const openTab = (key) => {
     setTab(key);
@@ -95,6 +154,18 @@ function DashboardShell() {
     if (searchResults.length > 0) {
       openTab(searchResults[0].key);
     }
+  };
+
+  const pushNotification = (description) => {
+    const item = {
+      id: Date.now(),
+      description,
+      user: displayName,
+      created_at: new Date().toISOString(),
+    };
+
+    setNotifications((prev) => [item, ...prev]);
+    setUnreadCount((prev) => prev + 1);
   };
 
   const loadNotifications = async () => {
@@ -113,8 +184,17 @@ function DashboardShell() {
 
       if (res.ok && Array.isArray(data.activities)) {
         const recent = data.activities.slice(0, 5);
-        setNotifications(recent);
-        setUnreadCount(recent.length);
+        setNotifications((prev) => {
+          const existingIds = new Set(prev.map((item) => item.id));
+          const merged = [
+            ...prev,
+            ...recent.filter((item) => !existingIds.has(item.id)),
+          ];
+
+          return merged.slice(0, 8);
+        });
+
+        setUnreadCount((prev) => Math.max(prev, recent.length));
       }
     } catch (err) {
       console.error('Failed to load notifications:', err);
@@ -142,14 +222,53 @@ function DashboardShell() {
     }
 
     if (tab === 'import') {
-      return <CsvImporter onCompleted={loadNotifications} />;
+      return (
+        <CsvImporter
+          onCompleted={() => {
+            loadNotifications();
+            pushNotification('Lead import completed successfully.');
+          }}
+        />
+      );
     }
 
-    if (tab === 'campaigns') return <PlaceholderPage title="Email Campaigns" />;
-    if (tab === 'templates') return <PlaceholderPage title="Email Templates" />;
-    if (tab === 'history') return <PlaceholderPage title="Email History" />;
-    if (tab === 'users') return <PlaceholderPage title="Users & Roles" />;
-    if (tab === 'settings') return <PlaceholderPage title="Settings" />;
+    if (tab === 'campaigns') {
+      return (
+        <EmailCampaignsPage
+          selectedTemplate={selectedTemplate}
+          onTemplateUsed={() => setSelectedTemplate(null)}
+          onSend={(historyItem) => {
+            setEmailHistory((prev) => [historyItem, ...prev]);
+            pushNotification(`Email campaign sent: ${historyItem.subject}`);
+          }}
+        />
+      );
+    }
+
+    if (tab === 'templates') {
+      return (
+        <EmailTemplatesPage
+          templates={emailTemplates}
+          setTemplates={setEmailTemplates}
+          onUseTemplate={(template) => {
+            setSelectedTemplate(template);
+            openTab('campaigns');
+          }}
+        />
+      );
+    }
+
+    if (tab === 'history') {
+      return <EmailHistoryPage history={emailHistory} />;
+    }
+
+    if (tab === 'users') {
+      return <UsersRolesPage users={teamUsers} setUsers={setTeamUsers} />;
+    }
+
+    if (tab === 'settings') {
+      return <SettingsPage user={user} />;
+    }
 
     return <Dashboard />;
   };
@@ -161,13 +280,15 @@ function DashboardShell() {
       }`}
     >
       <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
             <TrendingUp size={18} />
           </div>
 
           {!sidebarCollapsed && (
-            <span className="text-lg font-bold text-slate-900">LeadFlow</span>
+            <span className="text-lg font-bold text-slate-900 truncate">
+              LeadFlow
+            </span>
           )}
         </div>
 
@@ -182,7 +303,7 @@ function DashboardShell() {
         )}
       </div>
 
-      <nav className="flex-1 p-2 space-y-1">
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const active = tab === item.key && !selectedLeadId;
@@ -201,8 +322,8 @@ function DashboardShell() {
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <Icon size={18} />
-              {!sidebarCollapsed && <span>{item.label}</span>}
+              <Icon size={18} className="shrink-0" />
+              {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
             </button>
           );
         })}
@@ -214,7 +335,11 @@ function DashboardShell() {
           onClick={() => setSidebarCollapsed((prev) => !prev)}
           className="hidden lg:flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:bg-slate-50"
         >
-          {sidebarCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+          {sidebarCollapsed ? (
+            <ChevronsRight size={16} />
+          ) : (
+            <ChevronsLeft size={16} />
+          )}
           {!sidebarCollapsed && <span>Collapse</span>}
         </button>
 
@@ -248,12 +373,10 @@ function DashboardShell() {
 
   return (
     <div className="h-screen bg-slate-50 text-slate-900 flex overflow-hidden">
-      {/* Desktop Sidebar */}
       <div className="hidden lg:block h-full shrink-0">
         <SidebarContent />
       </div>
 
-      {/* Mobile Sidebar */}
       {mobileSidebarOpen && (
         <div className="fixed inset-0 z-[9999] lg:hidden">
           <div
@@ -268,7 +391,6 @@ function DashboardShell() {
       )}
 
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top Bar */}
         <header className="h-16 bg-white border-b border-slate-200 px-4 lg:px-6 flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -285,7 +407,6 @@ function DashboardShell() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Search */}
             <div className="relative hidden sm:block">
               <form onSubmit={handleSearchSubmit}>
                 <Search
@@ -295,7 +416,7 @@ function DashboardShell() {
 
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search modules..."
                   value={searchText}
                   onFocus={() => setSearchOpen(true)}
                   onChange={(e) => {
@@ -307,24 +428,31 @@ function DashboardShell() {
               </form>
 
               {searchOpen && searchText.trim() && (
-                <div className="absolute right-0 mt-2 w-[260px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-[280px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
                   {searchResults.length === 0 ? (
                     <div className="p-4 text-sm text-slate-400">
-                      No module found.
+                      No result found.
                     </div>
                   ) : (
-                    searchResults.map((item) => {
+                    searchResults.map((item, index) => {
                       const Icon = item.icon;
 
                       return (
                         <button
-                          key={item.key}
+                          key={`${item.label}-${index}`}
                           type="button"
                           onClick={() => openTab(item.key)}
                           className="w-full px-4 py-3 flex items-center gap-3 text-sm text-slate-700 hover:bg-slate-50 text-left"
                         >
                           <Icon size={16} className="text-slate-400" />
-                          {item.label}
+                          <div>
+                            <p className="font-medium">{item.label}</p>
+                            <p className="text-xs text-slate-400">
+                              {item.type === 'template'
+                                ? 'Email template'
+                                : 'Module'}
+                            </p>
+                          </div>
                         </button>
                       );
                     })
@@ -333,7 +461,6 @@ function DashboardShell() {
               )}
             </div>
 
-            {/* Notifications */}
             <div className="relative">
               <button
                 type="button"
@@ -352,7 +479,7 @@ function DashboardShell() {
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-[320px] max-w-[calc(100vw-32px)] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-32px)] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-900">
                       Notifications
@@ -401,7 +528,6 @@ function DashboardShell() {
               )}
             </div>
 
-            {/* Profile */}
             <div className="relative">
               <button
                 type="button"
@@ -419,15 +545,47 @@ function DashboardShell() {
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-[220px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-200">
-                    <p className="text-sm font-semibold text-slate-900 truncate">
-                      {displayName}
-                    </p>
-                    <p className="text-xs text-slate-400 truncate">
-                      {user?.email || 'Admin'}
-                    </p>
+                <div className="absolute right-0 mt-2 w-[260px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-4 border-b border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-full bg-cyan-600 text-white flex items-center justify-center text-sm font-bold">
+                        {userInitials}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {displayName}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {user?.email || 'Admin'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileModalOpen(true);
+                      setProfileOpen(false);
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <UserCog size={16} />
+                    Manage Profile
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openTab('settings');
+                      setProfileOpen(false);
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <Settings size={16} />
+                    Account Settings
+                  </button>
 
                   <button
                     type="button"
@@ -446,6 +604,629 @@ function DashboardShell() {
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {renderActiveTab()}
         </main>
+      </div>
+
+      {profileModalOpen && (
+        <ProfileModal
+          user={user}
+          displayName={displayName}
+          userInitials={userInitials}
+          onClose={() => setProfileModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function EmailCampaignsPage({ selectedTemplate, onTemplateUsed, onSend }) {
+  const [leads, setLeads] = useState([]);
+  const [selectedLeads, setSelectedLeads] = useState([]);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    const loadLeads = async () => {
+      const token = localStorage.getItem('lf_token');
+
+      try {
+        const res = await fetch('http://localhost:5000/api/leads?limit=100', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data.leads)
+            ? data.leads
+            : [];
+
+        setLeads(list);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadLeads();
+  }, []);
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      setSubject(selectedTemplate.subject);
+      setBody(selectedTemplate.body);
+      onTemplateUsed?.();
+    }
+  }, [selectedTemplate]);
+
+  const toggleLead = (id) => {
+    setSelectedLeads((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAll = () => {
+    if (selectedLeads.length === leads.length) {
+      setSelectedLeads([]);
+    } else {
+      setSelectedLeads(leads.map((lead) => lead.id));
+    }
+  };
+
+  const handleSend = () => {
+    if (!subject.trim() || !body.trim() || selectedLeads.length === 0) {
+      setSuccess('Please select leads and enter both subject and message.');
+      return;
+    }
+
+    const historyItem = {
+      id: Date.now(),
+      recipient: `${selectedLeads.length} selected lead(s)`,
+      subject,
+      status: 'Sent',
+      created_at: new Date().toISOString(),
+    };
+
+    onSend(historyItem);
+    setSuccess('Email campaign prepared and saved to email history.');
+    setSubject('');
+    setBody('');
+    setSelectedLeads([]);
+  };
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-slate-900">Email Campaigns</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Compose and send bulk email campaigns to selected leads.
+        </p>
+
+        {success && (
+          <div className="mt-4 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
+            {success}
+          </div>
+        )}
+
+        <div className="mt-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Subject
+            </label>
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Enter email subject"
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Message
+            </label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={10}
+              placeholder="Write your email message..."
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSend}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+          >
+            <Send size={16} />
+            Send Campaign
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 self-start">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">Select Leads</h3>
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="text-sm font-medium text-blue-600"
+          >
+            {selectedLeads.length === leads.length ? 'Clear' : 'Select all'}
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2 max-h-[420px] overflow-y-auto">
+          {leads.length === 0 ? (
+            <p className="text-sm text-slate-400">No leads found.</p>
+          ) : (
+            leads.map((lead) => (
+              <label
+                key={lead.id}
+                className="flex items-center gap-3 p-3 border border-slate-100 rounded-lg hover:bg-slate-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedLeads.includes(lead.id)}
+                  onChange={() => toggleLead(lead.id)}
+                  className="h-4 w-4 accent-blue-600"
+                />
+                <div>
+                  <p className="text-sm font-medium text-slate-800">
+                    {lead.first_name} {lead.last_name}
+                  </p>
+                  <p className="text-xs text-slate-400">{lead.email}</p>
+                </div>
+              </label>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmailTemplatesPage({ templates, setTemplates, onUseTemplate }) {
+  const [name, setName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+
+  const createTemplate = () => {
+    if (!name.trim() || !subject.trim() || !body.trim()) return;
+
+    setTemplates((prev) => [
+      {
+        id: Date.now(),
+        name,
+        subject,
+        body,
+      },
+      ...prev,
+    ]);
+
+    setName('');
+    setSubject('');
+    setBody('');
+  };
+
+  const deleteTemplate = (id) => {
+    setTemplates((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-slate-900">Email Templates</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Create and reuse common outreach email templates.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          {templates.map((template) => (
+            <div
+              key={template.id}
+              className="border border-slate-200 rounded-xl p-5 hover:shadow-sm bg-white"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-slate-900">{template.name}</h3>
+                  <p className="text-sm text-slate-500 mt-1">{template.subject}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => deleteTemplate(template.id)}
+                  className="text-slate-400 hover:text-red-500"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              <p className="text-sm text-slate-500 mt-4 line-clamp-3 whitespace-pre-line">
+                {template.body}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => onUseTemplate(template)}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+              >
+                Use Template
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 self-start">
+        <h3 className="text-lg font-semibold text-slate-900">Create Template</h3>
+
+        <div className="mt-4 space-y-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Template name"
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+          />
+
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Subject"
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+          />
+
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={6}
+            placeholder="Template body"
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 resize-none"
+          />
+
+          <button
+            type="button"
+            onClick={createTemplate}
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+          >
+            <Plus size={16} />
+            Create Template
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmailHistoryPage({ history }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="px-6 py-5 border-b border-slate-200">
+        <h2 className="text-xl font-semibold text-slate-900">Email History</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Review sent campaign records.
+        </p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+            <tr>
+              <th className="px-6 py-3">Date / Time</th>
+              <th className="px-6 py-3">Recipient</th>
+              <th className="px-6 py-3">Subject</th>
+              <th className="px-6 py-3">Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {history.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="px-6 py-8 text-center text-slate-400">
+                  No email history yet.
+                </td>
+              </tr>
+            ) : (
+              history.map((item) => (
+                <tr key={item.id} className="border-t border-slate-100">
+                  <td className="px-6 py-4 text-slate-600">
+                    {new Date(item.created_at).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-slate-600">{item.recipient}</td>
+                  <td className="px-6 py-4 text-slate-800 font-medium">
+                    {item.subject}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium">
+                      {item.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function UsersRolesPage({ users, setUsers }) {
+  const [search, setSearch] = useState('');
+
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(search.toLowerCase()) ||
+      user.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const updateRole = (id, role) => {
+    setUsers((prev) =>
+      prev.map((user) => (user.id === id ? { ...user, role } : user))
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <RoleCard title="Admin" description="Full access to manage users, leads, settings, and reports." />
+        <RoleCard title="Staff" description="Can manage assigned leads and daily outreach activities." />
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Users & Roles</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Manage team members and their access level.
+            </p>
+          </div>
+
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search users..."
+              className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+              <tr>
+                <th className="px-6 py-3">User</th>
+                <th className="px-6 py-3">Role</th>
+                <th className="px-6 py-3">Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredUsers.map((item) => (
+                <tr key={item.id} className="border-t border-slate-100">
+                  <td className="px-6 py-4">
+                    <p className="font-medium text-slate-900">{item.name}</p>
+                    <p className="text-xs text-slate-400">{item.email}</p>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <select
+                      value={item.role}
+                      onChange={(e) => updateRole(item.id, e.target.value)}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none"
+                    >
+                      <option>Admin</option>
+                      <option>Staff</option>
+                    </select>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium">
+                      {item.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoleCard({ title, description }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+      <div className="h-10 w-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+        <ShieldCheck size={20} />
+      </div>
+
+      <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+      <p className="text-sm text-slate-500 mt-2">{description}</p>
+    </div>
+  );
+}
+
+function SettingsPage({ user }) {
+  const [settings, setSettings] = useState({
+    name: `${user?.first_name || 'emelio'} ${user?.last_name || 'Innovations'}`,
+    email: user?.email || 'emelio@cubetech.com',
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: '587',
+    fromName: 'LeadFlow CRM',
+  });
+
+  const [saved, setSaved] = useState(false);
+
+  const updateSetting = (key, value) => {
+    setSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+
+    setSaved(false);
+  };
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-slate-900">Account Settings</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Manage your account information.
+        </p>
+
+        <div className="mt-6 space-y-4">
+          <SettingsInput
+            label="Full Name"
+            value={settings.name}
+            onChange={(value) => updateSetting('name', value)}
+          />
+          <SettingsInput
+            label="Email Address"
+            value={settings.email}
+            onChange={(value) => updateSetting('email', value)}
+          />
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-slate-900">Email Configuration</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Configure SMTP information for email sending.
+        </p>
+
+        <div className="mt-6 space-y-4">
+          <SettingsInput
+            label="SMTP Host"
+            value={settings.smtpHost}
+            onChange={(value) => updateSetting('smtpHost', value)}
+          />
+          <SettingsInput
+            label="SMTP Port"
+            value={settings.smtpPort}
+            onChange={(value) => updateSetting('smtpPort', value)}
+          />
+          <SettingsInput
+            label="From Name"
+            value={settings.fromName}
+            onChange={(value) => updateSetting('fromName', value)}
+          />
+
+          <button
+            type="button"
+            onClick={() => setSaved(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+          >
+            <Save size={16} />
+            Save Settings
+          </button>
+
+          {saved && (
+            <p className="text-sm text-emerald-600 flex items-center gap-2">
+              <CheckCircle2 size={16} />
+              Settings saved locally.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsInput({ label, value, onChange }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        {label}
+      </label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+      />
+    </div>
+  );
+}
+
+function ProfileModal({ user, displayName, userInitials, onClose }) {
+  const [profile, setProfile] = useState({
+    name: displayName,
+    email: user?.email || 'emelio@cubetech.com',
+    role: 'Admin',
+    company: 'CubeTech Innovations',
+  });
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+
+      <div className="relative bg-white w-full max-w-md rounded-xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Manage Profile</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-14 w-14 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold">
+              {userInitials}
+            </div>
+
+            <div>
+              <p className="font-semibold text-slate-900">{profile.name}</p>
+              <p className="text-sm text-slate-400">{profile.email}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <SettingsInput
+              label="Full Name"
+              value={profile.name}
+              onChange={(value) => setProfile((prev) => ({ ...prev, name: value }))}
+            />
+
+            <SettingsInput
+              label="Email"
+              value={profile.email}
+              onChange={(value) => setProfile((prev) => ({ ...prev, email: value }))}
+            />
+
+            <SettingsInput
+              label="Company"
+              value={profile.company}
+              onChange={(value) =>
+                setProfile((prev) => ({ ...prev, company: value }))
+              }
+            />
+
+            <SettingsInput
+              label="Role"
+              value={profile.role}
+              onChange={(value) => setProfile((prev) => ({ ...prev, role: value }))}
+            />
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+            >
+              <Save size={16} />
+              Save Profile
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
