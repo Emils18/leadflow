@@ -11,6 +11,7 @@ import {
 
 export default function Dashboard() {
   const [data, setData] = useState({
+    scope: 'staff',
     metrics: {
       totalLeads: 0,
       emailedCount: 0,
@@ -23,19 +24,24 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showAllActivities, setShowAllActivities] = useState(false);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (showAll = showAllActivities) => {
     setLoading(true);
     setError('');
 
     const token = localStorage.getItem('lf_token');
+    const activityLimit = showAll ? 50 : 5;
 
     try {
-      const res = await fetch('http://localhost:5000/api/dashboard/metrics', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        `http://localhost:5000/api/dashboard/metrics?activityLimit=${activityLimit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const result = await res.json();
 
@@ -53,8 +59,14 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(false);
   }, []);
+
+  const toggleActivities = () => {
+    const nextValue = !showAllActivities;
+    setShowAllActivities(nextValue);
+    fetchDashboardData(nextValue);
+  };
 
   if (loading) {
     return (
@@ -73,7 +85,7 @@ export default function Dashboard() {
         </div>
 
         <button
-          onClick={fetchDashboardData}
+          onClick={() => fetchDashboardData(showAllActivities)}
           className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium"
         >
           <RefreshCcw size={15} />
@@ -85,7 +97,7 @@ export default function Dashboard() {
 
   const stats = [
     {
-      label: 'Total Leads',
+      label: data.scope === 'admin' ? 'Total Leads' : 'My Assigned Leads',
       value: data.metrics.totalLeads,
       change: '+12%',
       icon: Users,
@@ -141,6 +153,19 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">
+            {data.scope === 'admin' ? 'Admin Dashboard' : 'Staff Dashboard'}
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            {data.scope === 'admin'
+              ? 'Showing all system leads and activities.'
+              : 'Showing only your assigned leads and related activities.'}
+          </p>
+        </div>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {stats.map((item) => {
@@ -189,7 +214,11 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-slate-900">
                 Lead Conversion Funnel
               </h3>
-              <p className="text-sm text-slate-400 mt-1">Leads by stage</p>
+              <p className="text-sm text-slate-400 mt-1">
+                {data.scope === 'admin'
+                  ? 'All leads by stage'
+                  : 'Your assigned leads by stage'}
+              </p>
             </div>
 
             <select className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 outline-none focus:border-blue-500">
@@ -284,12 +313,23 @@ export default function Dashboard() {
       {/* Recent Activity */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">
-            Recent Activity
-          </h3>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Recent Activity
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              {showAllActivities
+                ? 'Showing more activity records'
+                : 'Showing latest 5 activity records'}
+            </p>
+          </div>
 
-          <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
-            View all
+          <button
+            type="button"
+            onClick={toggleActivities}
+            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            {showAllActivities ? 'Show less' : 'View all'}
           </button>
         </div>
 

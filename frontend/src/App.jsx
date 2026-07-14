@@ -35,14 +35,53 @@ import {
 } from 'lucide-react';
 
 const navigationItems = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'leads', label: 'Leads', icon: Users },
-  { key: 'import', label: 'Import Leads', icon: Upload },
-  { key: 'campaigns', label: 'Email Campaigns', icon: Mail },
-  { key: 'templates', label: 'Email Templates', icon: FileText },
-  { key: 'history', label: 'Email History', icon: Clock3 },
-  { key: 'users', label: 'Users & Roles', icon: UserCog },
-  { key: 'settings', label: 'Settings', icon: Settings },
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    key: 'leads',
+    label: 'Leads',
+    icon: Users,
+    permission: 'can_manage_leads',
+  },
+  {
+    key: 'import',
+    label: 'Import Leads',
+    icon: Upload,
+    adminOnly: true,
+  },
+  {
+    key: 'campaigns',
+    label: 'Email Campaigns',
+    icon: Mail,
+    permission: 'can_send_email',
+  },
+  {
+    key: 'templates',
+    label: 'Email Templates',
+    icon: FileText,
+    permission: 'can_send_email',
+  },
+  {
+    key: 'history',
+    label: 'Email History',
+    icon: Clock3,
+    permission: 'can_send_email',
+  },
+  {
+    key: 'users',
+    label: 'Users & Roles',
+    icon: UserCog,
+    permission: 'can_manage_users',
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    permission: 'can_manage_settings',
+  },
 ];
 
 const defaultTemplates = [
@@ -65,16 +104,56 @@ const defaultTemplates = [
     body: 'Hi {{first_name}},\n\nI would be happy to walk you through a short demo and show how LeadFlow can support your outreach process.\n\nBest regards,',
   },
 ];
+const getUserRoleName = (user) => {
+  return (
+    user?.role?.role_name ||
+    user?.role_name ||
+    user?.role ||
+    'Staff'
+  );
+};
+
+const isAdminUser = (user) => {
+  return getUserRoleName(user).toLowerCase() === 'admin';
+};
+
+const hasPermission = (user, permissionKey) => {
+  if (!permissionKey) return true;
+  if (isAdminUser(user)) return true;
+
+  return user?.role?.[permissionKey] === true || user?.[permissionKey] === true;
+};
+
+const canAccessModule = (user, item) => {
+  if (!item) return false;
+  if (item.key === 'dashboard') return true;
+
+  if (item.adminOnly) {
+    return isAdminUser(user);
+  }
+
+  if (item.permission) {
+    return hasPermission(user, item.permission);
+  }
+
+  return true;
+};
 
 function DashboardShell() {
   const { user, logout } = useAuth();
+
+  const roleName = getUserRoleName(user);
+  const isAdmin = isAdminUser(user);
+
+  const allowedNavigationItems = useMemo(() => {
+    return navigationItems.filter((item) => canAccessModule(user, item));
+  }, [user]);
 
   const [tab, setTab] = useState('dashboard');
   const [selectedLeadId, setSelectedLeadId] = useState(null);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
   const [searchText, setSearchText] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -106,7 +185,7 @@ function DashboardShell() {
     },
   ]);
 
-  const activePage = navigationItems.find((item) => item.key === tab);
+    const activePage = allowedNavigationItems.find((item) => item.key === tab);
 
   const userInitials =
     `${user?.first_name?.charAt(0) || ''}${user?.last_name?.charAt(0) || ''}`.toUpperCase() ||
@@ -114,12 +193,21 @@ function DashboardShell() {
 
   const displayName = `${user?.first_name || 'emelio'} ${user?.last_name || 'Innovations'}`;
 
+    useEffect(() => {
+    const currentItem = navigationItems.find((item) => item.key === tab);
+
+    if (currentItem && !canAccessModule(user, currentItem)) {
+      setTab('dashboard');
+      setSelectedLeadId(null);
+    }
+  }, [tab, user]);
+
   const searchResults = useMemo(() => {
     const value = searchText.trim().toLowerCase();
 
     if (!value) return [];
 
-    const moduleResults = navigationItems
+        const moduleResults = allowedNavigationItems
       .filter((item) => item.label.toLowerCase().includes(value))
       .map((item) => ({
         type: 'module',
@@ -205,6 +293,11 @@ function DashboardShell() {
     loadNotifications();
   }, []);
 
+      const currentItem = navigationItems.find((item) => item.key === tab);
+
+    if (currentItem && !canAccessModule(user, currentItem)) {
+      return <AccessDeniedPage />;
+    }
   const renderActiveTab = () => {
     if (selectedLeadId) {
       return (
@@ -233,7 +326,25 @@ function DashboardShell() {
     }
 
     if (tab === 'campaigns') {
+      function AccessDeniedPage() {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-10 text-center">
+      <div className="mx-auto h-12 w-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center">
+        <ShieldCheck size={22} />
+      </div>
+
+      <h2 className="text-xl font-semibold text-slate-900 mt-4">
+        Access Restricted
+      </h2>
+
+      <p className="text-sm text-slate-500 mt-2">
+        Your current role does not have permission to open this module.
+      </p>
+    </div>
+  );
+}
       return (
+        
         <EmailCampaignsPage
           selectedTemplate={selectedTemplate}
           onTemplateUsed={() => setSelectedTemplate(null)}
@@ -304,7 +415,7 @@ function DashboardShell() {
       </div>
 
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {navigationItems.map((item) => {
+               {allowedNavigationItems.map((item) => {
           const Icon = item.icon;
           const active = tab === item.key && !selectedLeadId;
 
@@ -354,7 +465,7 @@ function DashboardShell() {
                 <p className="text-xs font-semibold text-slate-900 truncate">
                   {displayName}
                 </p>
-                <p className="text-xs text-slate-400">Admin</p>
+                                <p className="text-xs text-slate-400">{roleName}</p>
               </div>
             </div>
 
@@ -1158,7 +1269,7 @@ function ProfileModal({ user, displayName, userInitials, onClose }) {
   const [profile, setProfile] = useState({
     name: displayName,
     email: user?.email || 'emelio@cubetech.com',
-    role: 'Admin',
+        role: getUserRoleName(user),
     company: 'CubeTech Innovations',
   });
 
