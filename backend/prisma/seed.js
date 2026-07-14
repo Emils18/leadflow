@@ -58,6 +58,8 @@ async function main() {
     },
   });
 
+  
+
   // Seed standard status stages
   const statuses = [
     { status_name: 'New', display_order: 1, color_hex: '#3b82f6', is_final: false },
@@ -69,6 +71,7 @@ async function main() {
     { status_name: 'Converted', display_order: 7, color_hex: '#22c55e', is_final: true },
     { status_name: 'Not Interested', display_order: 8, color_hex: '#ef4444', is_final: true },
   ];
+  
 
   for (const status of statuses) {
     await prisma.leadStatus.create({ data: status });
