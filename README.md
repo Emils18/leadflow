@@ -242,7 +242,7 @@ Use the seeded/admin account from the database.
 Example:
 
 ```text
-Email: emelio@cubetech.com
+Email: emilio@cubetech.com
 Password: admin123
 ```
 
