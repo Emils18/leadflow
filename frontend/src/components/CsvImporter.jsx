@@ -98,7 +98,7 @@ export default function CsvImporter({ onCompleted }) {
     const token = localStorage.getItem('lf_token');
 
     const res = await fetch(
-      `http://localhost:5000/api/leads?search=${encodeURIComponent(email)}&limit=10`,
+      `/api/leads?search=${encodeURIComponent(email)}&limit=10`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -327,7 +327,7 @@ export default function CsvImporter({ onCompleted }) {
     formData.append('file', csvFile);
 
     try {
-      const res = await fetch('http://localhost:5000/api/imports/csv', {
+      const res = await fetch('/api/imports/csv', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -642,3 +642,4 @@ function SummaryBox({ label, value, color = 'text-slate-900' }) {
     </div>
   );
 }
+

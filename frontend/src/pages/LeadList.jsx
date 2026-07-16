@@ -24,7 +24,7 @@ export default function LeadList({ onSelectLead }) {
     const token = localStorage.getItem('lf_token');
 
     try {
-      const res = await fetch('http://localhost:5000/api/leads/variables', {
+      const res = await fetch('/api/leads/variables', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -48,7 +48,7 @@ export default function LeadList({ onSelectLead }) {
       });
 
       const res = await fetch(
-        `http://localhost:5000/api/leads?${queryParams.toString()}`,
+        `/api/leads?${queryParams.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -82,7 +82,7 @@ export default function LeadList({ onSelectLead }) {
     const token = localStorage.getItem('lf_token');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/leads/${id}`, {
+      const res = await fetch(`/api/leads/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -415,3 +415,4 @@ export default function LeadList({ onSelectLead }) {
     </div>
   );
 }
+

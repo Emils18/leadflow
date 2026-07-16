@@ -57,14 +57,14 @@ export default function EditLeadModal({ isOpen, leadId, onClose, onSaveSuccess }
       setError('');
 
       try {
-        const varsRes = await fetch('http://localhost:5000/api/leads/variables', {
+        const varsRes = await fetch('/api/leads/variables', {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         const varsData = await varsRes.json();
         setVars(varsData);
 
-        const leadRes = await fetch(`http://localhost:5000/api/lead-details/${leadId}`, {
+        const leadRes = await fetch(`/api/lead-details/${leadId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -113,7 +113,7 @@ export default function EditLeadModal({ isOpen, leadId, onClose, onSaveSuccess }
     const token = localStorage.getItem('lf_token');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/lead-details/${leadId}`, {
+      const res = await fetch(`/api/lead-details/${leadId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -364,3 +364,4 @@ export default function EditLeadModal({ isOpen, leadId, onClose, onSaveSuccess }
 
   return ReactDOM.createPortal(modalContent, document.body);
 }
+

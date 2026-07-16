@@ -23,7 +23,7 @@ export default function LeadDetails({ leadId, onBack }) {
     try {
       setLoading(true);
 
-      const res = await fetch(`http://localhost:5000/api/lead-details/${leadId}`, {
+      const res = await fetch(`/api/lead-details/${leadId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -53,7 +53,7 @@ export default function LeadDetails({ leadId, onBack }) {
     const token = localStorage.getItem('lf_token');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/lead-details/${leadId}/notes`, {
+      const res = await fetch(`/api/lead-details/${leadId}/notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -314,3 +314,4 @@ function SmallInfo({ label, value }) {
     </div>
   );
 }
+
