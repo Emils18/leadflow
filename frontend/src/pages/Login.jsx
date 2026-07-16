@@ -285,7 +285,7 @@ export default function Login() {
           <div className="mt-8 text-xs text-slate-400">
             Demo account:
             <span className="ml-1 font-semibold text-slate-500">
-              emilio@cubetech.com / admin123
+              emelio@cubetech.com / admin123
             </span>
           </div>
         </div>
