@@ -1,11 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('lf_token'));
+  const [token, setToken] = useState(() => localStorage.getItem('lf_token'));
   const [loading, setLoading] = useState(true);
+
+  const logout = () => {
+    localStorage.removeItem('lf_token');
+    setToken(null);
+    setUser(null);
+  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -17,16 +23,17 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await fetch('/api/auth/session', {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
-        } else {
-          logout();
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Session expired.');
         }
+
+        setUser(data.user);
       } catch (err) {
         console.error('Session validation error:', err);
         logout();
@@ -42,7 +49,7 @@ export const AuthProvider = ({ children }) => {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
 
     const data = await response.json();
@@ -54,13 +61,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('lf_token', data.token);
     setToken(data.token);
     setUser(data.user);
-    return data.user;
-  };
 
-  const logout = () => {
-    localStorage.removeItem('lf_token');
-    setToken(null);
-    setUser(null);
+    return data.user;
   };
 
   return (
@@ -71,4 +73,3 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-

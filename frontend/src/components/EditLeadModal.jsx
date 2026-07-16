@@ -364,4 +364,3 @@ export default function EditLeadModal({ isOpen, leadId, onClose, onSaveSuccess }
 
   return ReactDOM.createPortal(modalContent, document.body);
 }
-

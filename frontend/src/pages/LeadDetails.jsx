@@ -314,4 +314,3 @@ function SmallInfo({ label, value }) {
     </div>
   );
 }
-

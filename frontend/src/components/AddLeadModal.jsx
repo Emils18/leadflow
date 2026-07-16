@@ -2,9 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, FolderPlus } from 'lucide-react';
 
-/**
- * Country dropdown options for Add New Lead.
- */
 const countries = [
   'United States',
   'United Kingdom',
@@ -22,10 +19,6 @@ const countries = [
   'Malaysia',
 ];
 
-/**
- * Phone prefixes based on selected country.
- * When the country changes, the phone field will automatically update.
- */
 const COUNTRY_PHONE_PREFIX = {
   'United States': '+1',
   'United Kingdom': '+44',
@@ -46,10 +39,6 @@ const COUNTRY_PHONE_PREFIX = {
 const DEFAULT_COUNTRY = 'Philippines';
 const DEFAULT_PHONE_PREFIX = COUNTRY_PHONE_PREFIX[DEFAULT_COUNTRY];
 
-/**
- * Creates the default Add Lead form values.
- * Philippines and +63 are the default values.
- */
 const createDefaultLeadForm = (vars = {}) => ({
   first_name: '',
   last_name: '',
@@ -65,9 +54,13 @@ const createDefaultLeadForm = (vars = {}) => ({
 });
 
 export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
-  const [vars, setVars] = useState({ statuses: [], sources: [], staff: [] });
-  const [form, setForm] = useState(() => createDefaultLeadForm());
+  const [vars, setVars] = useState({
+    statuses: [],
+    sources: [],
+    staff: [],
+  });
 
+  const [form, setForm] = useState(() => createDefaultLeadForm());
   const [tagInput, setTagInput] = useState('');
   const [tagChips, setTagChips] = useState([]);
   const [error, setError] = useState('');
@@ -75,50 +68,55 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
   const firstInputRef = useRef(null);
 
-  /**
-   * Close modal when pressing Escape.
-   */
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape' && isOpen) onClose();
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
     };
 
     window.addEventListener('keydown', handleEscape);
+
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  /**
-   * Load dropdown variables when modal opens.
-   * Also resets the form to default Philippines + +63 when Add New Lead opens.
-   */
   useEffect(() => {
     if (!isOpen) return;
 
     setError('');
+    setLoading(false);
+    setTagInput('');
+    setTagChips([]);
 
     const token = localStorage.getItem('lf_token');
 
     fetch('/api/leads/variables', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     })
       .then((res) => res.json())
       .then((data) => {
-        setVars(data);
-        setForm(createDefaultLeadForm(data));
+        const safeData = {
+          statuses: Array.isArray(data.statuses) ? data.statuses : [],
+          sources: Array.isArray(data.sources) ? data.sources : [],
+          staff: Array.isArray(data.staff) ? data.staff : [],
+        };
+
+        setVars(safeData);
+        setForm(createDefaultLeadForm(safeData));
 
         setTimeout(() => firstInputRef.current?.focus(), 100);
       })
       .catch((err) => {
         console.error(err);
         setError('Failed to load lead form data.');
+        setForm(createDefaultLeadForm());
       });
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  /**
-   * General field updater for normal inputs.
-   */
   const updateField = (field, value) => {
     setForm((prev) => ({
       ...prev,
@@ -126,12 +124,6 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     }));
   };
 
-  /**
-   * Country change handler.
-   * This updates both:
-   * - selected country
-   * - phone prefix based on selected country
-   */
   const handleCountryChange = (e) => {
     const selectedCountry = e.target.value;
     const phonePrefix = COUNTRY_PHONE_PREFIX[selectedCountry] || '';
@@ -143,9 +135,6 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     }));
   };
 
-  /**
-   * Add tag when user presses Enter or comma.
-   */
   const handleTagKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -160,26 +149,17 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     }
   };
 
-  /**
-   * Remove selected tag chip.
-   */
   const removeTagChip = (indexToRemove) => {
     setTagChips((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  /**
-   * Reset form after saving.
-   * Keeps Philippines and +63 as default values.
-   */
   const resetForm = () => {
     setForm(createDefaultLeadForm(vars));
     setTagInput('');
     setTagChips([]);
+    setError('');
   };
 
-  /**
-   * Submit new lead to backend.
-   */
   const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -212,7 +192,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
       resetForm();
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to save lead.');
     } finally {
       setLoading(false);
     }
@@ -230,7 +210,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
         onClick={onClose}
       />
 
-      <div className="relative bg-white w-full max-w-3xl rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-[calc(100vh-48px)] flex flex-col">
+      <div className="relative bg-white w-full max-w-3xl rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-[calc(100vh-48px)] flex flex-col animate-fade-in">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -241,6 +221,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
               <h2 className="text-lg font-semibold text-slate-900">
                 Add New Lead
               </h2>
+
               <p className="text-sm text-slate-500">
                 Create a new lead profile.
               </p>
@@ -272,6 +253,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>First Name *</label>
+
                   <input
                     ref={firstInputRef}
                     type="text"
@@ -285,6 +267,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div>
                   <label className={labelClass}>Last Name *</label>
+
                   <input
                     type="text"
                     required
@@ -297,6 +280,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div className="md:col-span-2">
                   <label className={labelClass}>Company Name *</label>
+
                   <input
                     type="text"
                     required
@@ -309,6 +293,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div className="md:col-span-2">
                   <label className={labelClass}>Job Title</label>
+
                   <input
                     type="text"
                     placeholder="VP Marketing"
@@ -320,6 +305,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div className="md:col-span-2">
                   <label className={labelClass}>Email Address *</label>
+
                   <input
                     type="email"
                     required
@@ -332,6 +318,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div className="md:col-span-2">
                   <label className={labelClass}>Phone Number</label>
+
                   <input
                     type="text"
                     placeholder="+63 912 345 6789"
@@ -343,6 +330,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div className="md:col-span-2">
                   <label className={labelClass}>Website</label>
+
                   <input
                     type="text"
                     placeholder="www.acmecorp.com"
@@ -354,6 +342,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div className="md:col-span-2">
                   <label className={labelClass}>Country</label>
+
                   <select
                     className={inputClass}
                     value={form.country}
@@ -377,11 +366,14 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className={labelClass}>Lead Source</label>
+
                   <select
                     className={inputClass}
                     value={form.source_id}
                     onChange={(e) => updateField('source_id', e.target.value)}
                   >
+                    <option value="">Select source</option>
+
                     {vars.sources.map((source) => (
                       <option key={source.id} value={source.id}>
                         {source.source_name}
@@ -392,11 +384,14 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div>
                   <label className={labelClass}>Status</label>
+
                   <select
                     className={inputClass}
                     value={form.status_id}
                     onChange={(e) => updateField('status_id', e.target.value)}
                   >
+                    <option value="">Select status</option>
+
                     {vars.statuses.map((status) => (
                       <option key={status.id} value={status.id}>
                         {status.status_name}
@@ -407,6 +402,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div>
                   <label className={labelClass}>Assign To</label>
+
                   <select
                     className={inputClass}
                     value={form.assigned_user_id}
@@ -414,6 +410,8 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
                       updateField('assigned_user_id', e.target.value)
                     }
                   >
+                    <option value="">Unassigned</option>
+
                     {vars.staff.map((staff) => (
                       <option key={staff.id} value={staff.id}>
                         {staff.first_name} {staff.last_name}
@@ -424,6 +422,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
                 <div className="md:col-span-3">
                   <label className={labelClass}>Tags</label>
+
                   <input
                     type="text"
                     placeholder="SaaS, Enterprise, Q3-2026"
@@ -441,6 +440,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
                         >
                           {tag}
+
                           <button
                             type="button"
                             onClick={() => removeTagChip(index)}
@@ -457,7 +457,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
             </section>
           </div>
 
-          <div className="px-6 py-4 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0">
+          <div className="px-6 py-4 border-t border-slate-200 bg-white flex flex-col sm:flex-row sm:justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}

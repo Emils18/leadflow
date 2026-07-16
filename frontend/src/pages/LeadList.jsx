@@ -415,4 +415,3 @@ export default function LeadList({ onSelectLead }) {
     </div>
   );
 }
-

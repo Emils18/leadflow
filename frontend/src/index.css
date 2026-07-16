@@ -4,6 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
@@ -21,18 +25,27 @@ body {
   flex-direction: column;
 }
 
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -43,6 +56,7 @@ body {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -50,9 +64,11 @@ body {
 }
 
 @keyframes smoothFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-8px);
   }
@@ -63,9 +79,52 @@ body {
     opacity: 0;
     transform: translateY(6px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes dashboardBarGrow {
+  from {
+    height: 0;
+    opacity: 0.4;
+  }
+
+  to {
+    height: var(--bar-height);
+    opacity: 1;
+  }
+}
+
+@keyframes dashboardLineDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dashboardDotIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dashboardPop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -82,14 +141,20 @@ body {
   animation: rowEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.animate-pop {
+  animation: dashboardPop 0.18s ease-out forwards;
+}
+
 /* Tactile Hover Lift Utility */
 .hover-lift {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 .hover-lift:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px -10px rgba(37, 99, 235, 0.12);
 }
+
 .hover-lift:active {
   transform: translateY(-1px) scale(0.98);
 }
@@ -98,36 +163,23 @@ body {
 .hover-glow {
   transition: all 0.2s ease-out;
 }
+
 .hover-glow:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
-
-/* Dashboard card entrance */
+/* Dashboard Animations */
 .dashboard-card {
   opacity: 0;
   animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Animated funnel bars */
 .dashboard-bar {
   height: 0;
   animation: dashboardBarGrow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes dashboardBarGrow {
-  from {
-    height: 0;
-    opacity: 0.4;
-  }
-  to {
-    height: var(--bar-height);
-    opacity: 1;
-  }
-}
-
-/* Animated SVG lines */
 .dashboard-line {
   stroke-dasharray: 900;
   stroke-dashoffset: 900;
@@ -138,42 +190,28 @@ body {
   animation-delay: 0.25s;
 }
 
-@keyframes dashboardLineDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* Animated chart dots */
 .dashboard-dot {
   opacity: 0;
   animation: dashboardDotIn 0.35s ease-out forwards;
   animation-delay: 0.85s;
 }
 
-@keyframes dashboardDotIn {
-  from {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* Responsive Safety */
+.responsive-table {
+  width: 100%;
+  overflow-x: auto;
 }
 
-/* Small tooltip pop */
-.animate-pop {
-  animation: dashboardPop 0.18s ease-out forwards;
-}
-
-@keyframes dashboardPop {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.96);
+@media (max-width: 768px) {
+  .dashboard-card {
+    border-radius: 14px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+
+  .dashboard-card h2 {
+    font-size: 1.6rem;
+  }
+
+  table {
+    min-width: 720px;
   }
 }
