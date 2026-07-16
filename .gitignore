@@ -2,4 +2,5 @@ node_modules/
 dist/ 
 .env 
 .vscode/
-leadflow_crm.sql
+backend/package-lock.json
+frontend/package-lock.json

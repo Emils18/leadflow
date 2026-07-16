@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, FolderPlus } from 'lucide-react';
 
+/**
+ * Country dropdown options for Add New Lead.
+ */
 const countries = [
   'United States',
   'United Kingdom',
@@ -19,22 +22,51 @@ const countries = [
   'Malaysia',
 ];
 
+/**
+ * Phone prefixes based on selected country.
+ * When the country changes, the phone field will automatically update.
+ */
+const COUNTRY_PHONE_PREFIX = {
+  'United States': '+1',
+  'United Kingdom': '+44',
+  Philippines: '+63',
+  India: '+91',
+  Brazil: '+55',
+  Netherlands: '+31',
+  Ghana: '+233',
+  Japan: '+81',
+  Canada: '+1',
+  Australia: '+61',
+  Germany: '+49',
+  France: '+33',
+  Singapore: '+65',
+  Malaysia: '+60',
+};
+
+const DEFAULT_COUNTRY = 'Philippines';
+const DEFAULT_PHONE_PREFIX = COUNTRY_PHONE_PREFIX[DEFAULT_COUNTRY];
+
+/**
+ * Creates the default Add Lead form values.
+ * Philippines and +63 are the default values.
+ */
+const createDefaultLeadForm = (vars = {}) => ({
+  first_name: '',
+  last_name: '',
+  company_name: '',
+  job_title: '',
+  email: '',
+  phone: DEFAULT_PHONE_PREFIX,
+  website: '',
+  country: DEFAULT_COUNTRY,
+  source_id: vars.sources?.[0]?.id || '',
+  status_id: vars.statuses?.[0]?.id || '',
+  assigned_user_id: vars.staff?.[0]?.id || '',
+});
+
 export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
   const [vars, setVars] = useState({ statuses: [], sources: [], staff: [] });
-
-  const [form, setForm] = useState({
-    first_name: '',
-    last_name: '',
-    company_name: '',
-    job_title: '',
-    email: '',
-    phone: '',
-    website: '',
-    country: 'United States',
-    source_id: '',
-    status_id: '',
-    assigned_user_id: '',
-  });
+  const [form, setForm] = useState(() => createDefaultLeadForm());
 
   const [tagInput, setTagInput] = useState('');
   const [tagChips, setTagChips] = useState([]);
@@ -43,6 +75,9 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
   const firstInputRef = useRef(null);
 
+  /**
+   * Close modal when pressing Escape.
+   */
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -52,6 +87,10 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
+  /**
+   * Load dropdown variables when modal opens.
+   * Also resets the form to default Philippines + +63 when Add New Lead opens.
+   */
   useEffect(() => {
     if (!isOpen) return;
 
@@ -59,19 +98,13 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
     const token = localStorage.getItem('lf_token');
 
-    fetch('http://localhost:5000/api/leads/variables', {
+    fetch('/api/leads/variables', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
         setVars(data);
-
-        setForm((prev) => ({
-          ...prev,
-          status_id: data.statuses?.[0]?.id || '',
-          source_id: data.sources?.[0]?.id || '',
-          assigned_user_id: data.staff?.[0]?.id || '',
-        }));
+        setForm(createDefaultLeadForm(data));
 
         setTimeout(() => firstInputRef.current?.focus(), 100);
       })
@@ -83,6 +116,9 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
   if (!isOpen) return null;
 
+  /**
+   * General field updater for normal inputs.
+   */
   const updateField = (field, value) => {
     setForm((prev) => ({
       ...prev,
@@ -90,6 +126,26 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     }));
   };
 
+  /**
+   * Country change handler.
+   * This updates both:
+   * - selected country
+   * - phone prefix based on selected country
+   */
+  const handleCountryChange = (e) => {
+    const selectedCountry = e.target.value;
+    const phonePrefix = COUNTRY_PHONE_PREFIX[selectedCountry] || '';
+
+    setForm((prev) => ({
+      ...prev,
+      country: selectedCountry,
+      phone: phonePrefix,
+    }));
+  };
+
+  /**
+   * Add tag when user presses Enter or comma.
+   */
   const handleTagKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -104,29 +160,26 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     }
   };
 
+  /**
+   * Remove selected tag chip.
+   */
   const removeTagChip = (indexToRemove) => {
     setTagChips((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
+  /**
+   * Reset form after saving.
+   * Keeps Philippines and +63 as default values.
+   */
   const resetForm = () => {
-    setForm({
-      first_name: '',
-      last_name: '',
-      company_name: '',
-      job_title: '',
-      email: '',
-      phone: '',
-      website: '',
-      country: 'United States',
-      source_id: vars.sources?.[0]?.id || '',
-      status_id: vars.statuses?.[0]?.id || '',
-      assigned_user_id: vars.staff?.[0]?.id || '',
-    });
-
+    setForm(createDefaultLeadForm(vars));
     setTagInput('');
     setTagChips([]);
   };
 
+  /**
+   * Submit new lead to backend.
+   */
   const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -140,7 +193,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     };
 
     try {
-      const res = await fetch('http://localhost:5000/api/leads', {
+      const res = await fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,8 +221,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
   const inputClass =
     'w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10';
 
-  const labelClass =
-    'block text-sm font-medium text-slate-700 mb-1.5';
+  const labelClass = 'block text-sm font-medium text-slate-700 mb-1.5';
 
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -282,7 +334,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
                   <label className={labelClass}>Phone Number</label>
                   <input
                     type="text"
-                    placeholder="+1 415 555 0100"
+                    placeholder="+63 912 345 6789"
                     className={inputClass}
                     value={form.phone}
                     onChange={(e) => updateField('phone', e.target.value)}
@@ -305,7 +357,7 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
                   <select
                     className={inputClass}
                     value={form.country}
-                    onChange={(e) => updateField('country', e.target.value)}
+                    onChange={handleCountryChange}
                   >
                     {countries.map((country) => (
                       <option key={country} value={country}>
