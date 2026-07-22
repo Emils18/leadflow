@@ -12,6 +12,12 @@ enum UserStatus {
   inactive
 }
 
+enum InterestLevel {
+  cold
+  warm
+  hot
+}
+
 enum ActivityType {
   created
   updated
@@ -63,108 +69,128 @@ enum LogStatus {
 }
 
 model Role {
-  id                    Int      @id @default(autoincrement())
-  role_name             String   @unique @db.VarChar(50)
-  description           String   @db.VarChar(255)
-  can_manage_leads      Boolean  @default(false)
-  can_send_email        Boolean  @default(false)
-  can_manage_users      Boolean  @default(false)
-  can_manage_settings   Boolean  @default(false)
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  role_name           String   @unique @db.VarChar(50)
+  description         String   @db.VarChar(255)
+  can_manage_leads    Boolean  @default(false)
+  can_send_email      Boolean  @default(false)
+  can_manage_users    Boolean  @default(false)
+  can_manage_settings Boolean  @default(false)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
-  users                 User[]
+  users User[]
 
   @@map("roles")
 }
 
 model User {
-  id              Int          @id @default(autoincrement())
+  id              Int        @id @default(autoincrement())
   role_id         Int
-  role            Role         @relation(fields: [role_id], references: [id])
-  first_name      String       @db.VarChar(100)
-  last_name       String       @db.VarChar(100)
-  email           String       @unique @db.VarChar(150)
-  password_hash   String       @db.Text
-  avatar_initials String       @db.VarChar(5)
-  status          UserStatus   @default(active)
+  role            Role       @relation(fields: [role_id], references: [id])
+  first_name      String     @db.VarChar(100)
+  last_name       String     @db.VarChar(100)
+  email           String     @unique @db.VarChar(150)
+  password_hash   String     @db.Text
+  avatar_initials String     @db.VarChar(5)
+  status          UserStatus @default(active)
   last_login_at   DateTime?
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @updatedAt
+  created_at      DateTime   @default(now())
+  updated_at      DateTime   @updatedAt
 
-  assigned_leads  Lead[]       @relation("AssignedLeads")
-  created_leads   Lead[]       @relation("CreatedLeads")
-  notes           LeadNote[]
-  activities      LeadActivity[]
-  batches         ImportBatch[]
-  templates       EmailTemplate[]
-  campaigns       EmailCampaign[]
-  email_logs      EmailLog[]
+  assigned_leads Lead[]          @relation("AssignedLeads")
+  created_leads  Lead[]          @relation("CreatedLeads")
+  notes          LeadNote[]
+  activities     LeadActivity[]
+  batches        ImportBatch[]
+  templates      EmailTemplate[]
+  campaigns      EmailCampaign[]
+  email_logs     EmailLog[]
 
   @@map("users")
 }
 
 model LeadStatus {
-  id            Int      @id @default(autoincrement())
-  status_name   String   @unique @db.VarChar(50)
+  id            Int     @id @default(autoincrement())
+  status_name   String  @unique @db.VarChar(50)
   display_order Int
-  color_hex     String   @db.VarChar(20)
-  is_final      Boolean  @default(false)
+  color_hex     String  @db.VarChar(20)
+  is_final      Boolean @default(false)
 
-  leads         Lead[]
+  leads Lead[]
 
   @@map("lead_statuses")
 }
 
 model LeadSource {
-  id          Int      @id @default(autoincrement())
-  source_name String   @unique @db.VarChar(100)
-  description String   @db.VarChar(255)
+  id          Int    @id @default(autoincrement())
+  source_name String @unique @db.VarChar(100)
+  description String @db.VarChar(255)
 
-  leads       Lead[]
+  leads Lead[]
 
   @@map("lead_sources")
 }
 
 model Lead {
-  id                Int           @id @default(autoincrement())
-  first_name        String        @db.VarChar(100)
-  last_name         String        @db.VarChar(100)
-  company_name      String        @db.VarChar(200)
-  job_title         String        @db.VarChar(150)
-  email             String        @unique @db.VarChar(150)
-  phone             String        @db.VarChar(50)
-  website           String        @db.VarChar(255)
-  country           String        @db.VarChar(100)
-  source_id         Int
-  source            LeadSource    @relation(fields: [source_id], references: [id])
-  status_id         Int
-  status            LeadStatus    @relation(fields: [status_id], references: [id])
-  assigned_user_id  Int
-  assigned_to       User          @relation("AssignedLeads", fields: [assigned_user_id], references: [id])
-  created_by        Int
-  creator           User          @relation("CreatedLeads", fields: [created_by], references: [id])
+  id           Int     @id @default(autoincrement())
+  company_name String  @db.VarChar(200)
+  first_name   String? @db.VarChar(100)
+  last_name    String? @db.VarChar(100)
+
+  business_type String @default("Others") @db.VarChar(100)
+  job_title     String? @db.VarChar(150)
+  email         String  @unique @db.VarChar(150)
+  phone         String? @db.VarChar(50)
+  website       String? @db.VarChar(255)
+
+  social_media_url String? @db.VarChar(500)
+
+  complete_address String? @db.Text
+  barangay         String? @db.VarChar(150)
+  city             String  @default("") @db.VarChar(150)
+  province         String? @db.VarChar(150)
+  country          String  @db.VarChar(100)
+
+  preferred_contact_method String?   @db.VarChar(100)
+  next_follow_up_date      DateTime?
+
+  interest_level    InterestLevel @default(cold)
+  converted_product String?       @db.VarChar(200)
+
+  source_id Int
+  source    LeadSource @relation(fields: [source_id], references: [id])
+
+  status_id Int
+  status    LeadStatus @relation(fields: [status_id], references: [id])
+
+  assigned_user_id Int
+  assigned_to      User @relation("AssignedLeads", fields: [assigned_user_id], references: [id])
+
+  created_by Int
+  creator    User @relation("CreatedLeads", fields: [created_by], references: [id])
+
   last_contacted_at DateTime?
-  created_at        DateTime      @default(now())
-  updated_at        DateTime      @updatedAt
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
   deleted_at        DateTime?
 
-  tags              LeadTagMap[]
-  notes             LeadNote[]
-  activities        LeadActivity[]
-  import_rows       ImportRow[]
+  tags                LeadTagMap[]
+  notes               LeadNote[]
+  activities          LeadActivity[]
+  import_rows         ImportRow[]
   campaign_recipients CampaignRecipient[]
-  email_logs        EmailLog[]
+  email_logs          EmailLog[]
 
   @@map("leads")
 }
 
 model LeadTag {
-  id         Int          @id @default(autoincrement())
-  tag_name   String       @unique @db.VarChar(100)
-  created_at DateTime     @default(now())
+  id         Int      @id @default(autoincrement())
+  tag_name   String   @unique @db.VarChar(100)
+  created_at DateTime @default(now())
 
-  leads      LeadTagMap[]
+  leads LeadTagMap[]
 
   @@map("lead_tags")
 }
@@ -172,8 +198,9 @@ model LeadTag {
 model LeadTagMap {
   lead_id Int
   tag_id  Int
-  lead    Lead    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-  tag     LeadTag @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  lead Lead    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  tag  LeadTag @relation(fields: [tag_id], references: [id], onDelete: Cascade)
 
   @@id([lead_id, tag_id])
   @@map("lead_tag_map")
@@ -218,7 +245,7 @@ model ImportBatch {
   status          BatchStatus @default(processing)
   created_at      DateTime    @default(now())
 
-  rows            ImportRow[]
+  rows ImportRow[]
 
   @@map("import_batches")
 }
@@ -239,76 +266,76 @@ model ImportRow {
 }
 
 model EmailTemplate {
-  id            Int             @id @default(autoincrement())
-  template_name String          @db.VarChar(200)
-  subject       String          @db.VarChar(255)
-  body_html     String          @db.Text
-  body_text     String?         @db.Text
+  id            Int      @id @default(autoincrement())
+  template_name String   @db.VarChar(200)
+  subject       String   @db.VarChar(255)
+  body_html     String   @db.Text
+  body_text     String?  @db.Text
   created_by    Int
-  creator       User            @relation(fields: [created_by], references: [id])
-  is_active     Boolean         @default(true)
-  created_at    DateTime        @default(now())
-  updated_at    DateTime        @updatedAt
+  creator       User     @relation(fields: [created_by], references: [id])
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  campaigns     EmailCampaign[]
-  email_logs    EmailLog[]
+  campaigns  EmailCampaign[]
+  email_logs EmailLog[]
 
   @@map("email_templates")
 }
 
 model EmailCampaign {
-  id            Int                 @id @default(autoincrement())
-  campaign_name String              @db.VarChar(200)
+  id            Int            @id @default(autoincrement())
+  campaign_name String         @db.VarChar(200)
   template_id   Int?
-  template      EmailTemplate?      @relation(fields: [template_id], references: [id])
-  subject       String              @db.VarChar(255)
-  body_html     String              @db.Text
+  template      EmailTemplate? @relation(fields: [template_id], references: [id])
+  subject       String         @db.VarChar(255)
+  body_html     String         @db.Text
   created_by    Int
-  creator       User                @relation(fields: [created_by], references: [id])
-  status        CampaignStatus      @default(draft)
+  creator       User           @relation(fields: [created_by], references: [id])
+  status        CampaignStatus @default(draft)
   scheduled_at  DateTime?
-  created_at    DateTime            @default(now())
+  created_at    DateTime       @default(now())
 
-  recipients    CampaignRecipient[]
-  email_logs    EmailLog[]
+  recipients CampaignRecipient[]
+  email_logs EmailLog[]
 
   @@map("email_campaigns")
 }
 
 model CampaignRecipient {
-  id          Int             @id @default(autoincrement())
-  campaign_id Int
-  campaign    EmailCampaign   @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
-  lead_id     Int
-  lead        Lead            @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-  email       String          @db.VarChar(150)
-  status      RecipientStatus @default(pending)
-  sent_at     DateTime?
-  opened_at   DateTime?
-  replied_at  DateTime?
-  error_message String?       @db.Text
+  id            Int             @id @default(autoincrement())
+  campaign_id   Int
+  campaign      EmailCampaign   @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  lead_id       Int
+  lead          Lead            @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  email         String          @db.VarChar(150)
+  status        RecipientStatus @default(pending)
+  sent_at       DateTime?
+  opened_at     DateTime?
+  replied_at    DateTime?
+  error_message String?         @db.Text
 
   @@map("campaign_recipients")
 }
 
 model EmailLog {
-  id              Int           @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   lead_id         Int
-  lead            Lead          @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  lead            Lead           @relation(fields: [lead_id], references: [id], onDelete: Cascade)
   campaign_id     Int?
   campaign        EmailCampaign? @relation(fields: [campaign_id], references: [id])
   template_id     Int?
   template        EmailTemplate? @relation(fields: [template_id], references: [id])
   sender_user_id  Int
-  sender          User          @relation(fields: [sender_user_id], references: [id])
-  recipient_email String        @db.VarChar(150)
-  subject         String        @db.VarChar(255)
-  body_html       String        @db.Text
-  status          LogStatus     @default(sent)
+  sender          User           @relation(fields: [sender_user_id], references: [id])
+  recipient_email String         @db.VarChar(150)
+  subject         String         @db.VarChar(255)
+  body_html       String         @db.Text
+  status          LogStatus      @default(sent)
   sent_at         DateTime?
   opened_at       DateTime?
   replied_at      DateTime?
-  error_message   String?       @db.Text
+  error_message   String?        @db.Text
 
   @@map("email_logs")
 }
@@ -317,7 +344,7 @@ model CompanySetting {
   id           Int      @id @default(autoincrement())
   company_name String   @db.VarChar(200)
   admin_email  String   @db.VarChar(150)
-  timezone     String   @db.VarChar(100) @default("UTC")
+  timezone     String   @default("UTC") @db.VarChar(100)
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
@@ -325,17 +352,17 @@ model CompanySetting {
 }
 
 model SmtpSetting {
-  id                    Int      @id @default(autoincrement())
-  smtp_host             String   @db.VarChar(255)
-  smtp_port             Int
-  smtp_username         String   @db.VarChar(255)
-  smtp_password_encrypted String @db.Text
-  from_name             String   @db.VarChar(150)
-  from_email            String   @db.VarChar(150)
-  use_tls               Boolean  @default(true)
-  is_active             Boolean  @default(false)
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  id                      Int      @id @default(autoincrement())
+  smtp_host               String   @db.VarChar(255)
+  smtp_port               Int
+  smtp_username           String   @db.VarChar(255)
+  smtp_password_encrypted String   @db.Text
+  from_name               String   @db.VarChar(150)
+  from_email              String   @db.VarChar(150)
+  use_tls                 Boolean  @default(true)
+  is_active               Boolean  @default(false)
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
 
   @@map("smtp_settings")
-} 
+}

@@ -289,6 +289,27 @@ function getUserInitials(user, displayName) {
     .toUpperCase();
 }
 
+function formatLastLogin(value) {
+  if (!value || value === 'Never') {
+    return 'Never';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+}
+
 function isAdminUser(user) {
   return getUserRoleName(user).toLowerCase() === 'admin';
 }
@@ -531,14 +552,27 @@ function DashboardShell() {
       return <AccessDeniedPage />;
     }
 
-    if (selectedLeadId) {
-      return (
-        <LeadDetails
-          leadId={selectedLeadId}
-          onBack={() => setSelectedLeadId(null)}
-        />
-      );
-    }
+   if (selectedLeadId) {
+  return (
+    <LeadDetails
+      leadId={selectedLeadId}
+      onBack={() => setSelectedLeadId(null)}
+      emailTemplates={emailTemplates}
+      senderEmail={user?.email || ''}
+      canSendEmail={hasPermission(user, 'can_send_email')}
+      onSendEmail={(historyItem) => {
+        setEmailHistory((prev) => [
+          historyItem,
+          ...prev,
+        ]);
+
+        pushNotification(
+          `Lead email saved: ${historyItem.subject}`
+        );
+      }}
+    />
+  );
+}
 
     if (tab === 'dashboard') return <Dashboard />;
 
@@ -2158,8 +2192,8 @@ function UsersRolesPage({ currentUser }) {
                       </span>
                     </td>
 
-                    <td className="px-5 py-4 text-slate-500 font-mono text-xs">
-                      {user.last_login_at || 'Never'}
+                    <td className="px-5 py-4 text-slate-500 text-xs whitespace-nowrap">
+                      {formatLastLogin(user.last_login_at)}
                     </td>
 
                     <td className="px-5 py-4">

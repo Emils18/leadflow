@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { X, FolderPlus } from 'lucide-react';
+import { FolderPlus, Info, X } from 'lucide-react';
 
 const countries = [
   'United States',
@@ -37,47 +37,245 @@ const COUNTRY_PHONE_PREFIX = {
 };
 
 const DEFAULT_COUNTRY = 'Philippines';
-const DEFAULT_PHONE_PREFIX = COUNTRY_PHONE_PREFIX[DEFAULT_COUNTRY];
+const DEFAULT_PHONE_PREFIX =
+  COUNTRY_PHONE_PREFIX[DEFAULT_COUNTRY];
+
+const DEFAULT_INTEREST_LEVELS = [
+  { value: 'cold', label: 'Cold' },
+  { value: 'warm', label: 'Warm' },
+  { value: 'hot', label: 'Hot' },
+];
+
+const DEFAULT_BUSINESS_TYPES = [
+  'Café',
+  'Restaurant',
+  'Food Chain',
+  'Hotel',
+  'Others',
+];
+
+const DEFAULT_CONVERTED_PRODUCTS = [
+  'SnapServe Lite',
+  'SnapServe Full',
+  'Others',
+];
+
+const PREFERRED_CONTACT_METHODS = [
+  'Email',
+  'Phone',
+  'Facebook',
+  'Instagram',
+  'LinkedIn',
+];
+
+const normalizeExternalUrl = (value) => {
+  const url = String(value || '').trim();
+
+  if (!url) return '';
+
+  return /^https?:\/\//i.test(url)
+    ? url
+    : `https://${url}`;
+};
 
 const createDefaultLeadForm = (vars = {}) => ({
+  company_name: '',
+  business_type: '',
+  source_id: vars.sources?.[0]?.id || '',
+  interest_level: 'cold',
+  status_id: vars.statuses?.[0]?.id || '',
+  converted_product: '',
+
   first_name: '',
   last_name: '',
-  company_name: '',
   job_title: '',
-  email: '',
   phone: DEFAULT_PHONE_PREFIX,
+  email: '',
   website: '',
+  social_media_url: '',
+
+  complete_address: '',
+  barangay: '',
+  city: '',
+  province: '',
   country: DEFAULT_COUNTRY,
-  source_id: vars.sources?.[0]?.id || '',
-  status_id: vars.statuses?.[0]?.id || '',
+
   assigned_user_id: vars.staff?.[0]?.id || '',
+  preferred_contact_method: '',
+  next_follow_up_date: '',
+  notes: '',
 });
 
-export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
+function SectionTitle({ number, title }) {
+  return (
+    <div className="mb-3">
+      <div className="flex items-center gap-2">
+        <span className="h-5 w-5 shrink-0 rounded-md bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold">
+          {number}
+        </span>
+
+        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+          {title}
+        </h3>
+      </div>
+    </div>
+  );
+}
+
+function FieldLabel({
+  children,
+  required = false,
+  optional = false,
+  info = false,
+}) {
+  return (
+    <label className="flex flex-wrap items-center gap-1.5 mb-1.5 text-xs sm:text-sm font-medium text-slate-700">
+      <span>
+        {children}
+        {required && ' *'}
+      </span>
+
+      {optional && (
+        <span className="font-normal text-slate-400">
+          (Optional)
+        </span>
+      )}
+
+      {info && (
+        <Info
+          size={13}
+          className="text-slate-400"
+        />
+      )}
+    </label>
+  );
+}
+
+function SocialPlatformButtons() {
+  const platforms = [
+    {
+      name: 'Facebook',
+      href: 'https://www.facebook.com',
+      className:
+        'bg-[#1877F2] hover:bg-[#166FE5] shadow-blue-500/20',
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4 fill-current"
+          aria-hidden="true"
+        >
+          <path d="M13.5 8.5H16l.4-3h-2.9C10.5 5.5 9 7.3 9 10.2V13H6v3h3v8h3.5v-8h3l.5-3h-3.5v-2.4c0-1.4.4-2.1 2-2.1Z" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Instagram',
+      href: 'https://www.instagram.com',
+      className:
+        'bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 shadow-pink-500/20',
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <rect
+            x="3"
+            y="3"
+            width="18"
+            height="18"
+            rx="5"
+          />
+          <circle cx="12" cy="12" r="4" />
+          <circle
+            cx="17.5"
+            cy="6.5"
+            r="1"
+            fill="currentColor"
+            stroke="none"
+          />
+        </svg>
+      ),
+    },
+    {
+      name: 'LinkedIn',
+      href: 'https://www.linkedin.com',
+      className:
+        'bg-[#0A66C2] hover:bg-[#095BAA] shadow-blue-600/20',
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4 fill-current"
+          aria-hidden="true"
+        >
+          <path d="M6.5 8.4H3.3V21h3.2V8.4ZM4.9 3A1.9 1.9 0 1 0 5 6.8 1.9 1.9 0 0 0 4.9 3ZM21 13.8c0-3.8-2-5.6-4.7-5.6-2.2 0-3.1 1.2-3.7 2V8.4H9.4V21h3.2v-6.2c0-1.6.3-3.2 2.3-3.2 2 0 2 1.8 2 3.3V21H20v-7.2Z" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="h-10 px-2.5 shrink-0 flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50">
+      {platforms.map((platform) => (
+        <a
+          key={platform.name}
+          href={platform.href}
+          target="_blank"
+          rel="noreferrer"
+          title={`Open ${platform.name}`}
+          aria-label={`Open ${platform.name}`}
+          className={`h-7 w-7 rounded-lg text-white flex items-center justify-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${platform.className}`}
+        >
+          {platform.icon}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+export default function AddLeadModal({
+  isOpen,
+  onClose,
+  onSaveSuccess,
+}) {
   const [vars, setVars] = useState({
     statuses: [],
     sources: [],
     staff: [],
+    interest_levels: DEFAULT_INTEREST_LEVELS,
+    business_types: DEFAULT_BUSINESS_TYPES,
+    converted_products: DEFAULT_CONVERTED_PRODUCTS,
   });
 
-  const [form, setForm] = useState(() => createDefaultLeadForm());
+  const [form, setForm] = useState(() =>
+    createDefaultLeadForm()
+  );
+
   const [tagInput, setTagInput] = useState('');
   const [tagChips, setTagChips] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const firstInputRef = useRef(null);
+  const companyInputRef = useRef(null);
 
   useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && isOpen) {
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && isOpen) {
         onClose();
       }
     };
 
     window.addEventListener('keydown', handleEscape);
 
-    return () => window.removeEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        handleEscape
+      );
+    };
   }, [isOpen, onClose]);
 
   useEffect(() => {
@@ -95,62 +293,180 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
         Authorization: `Bearer ${token}`,
       },
     })
-      .then((res) => res.json())
+      .then(async (response) => {
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+              'Failed to load lead form data.'
+          );
+        }
+
+        return data;
+      })
       .then((data) => {
         const safeData = {
-          statuses: Array.isArray(data.statuses) ? data.statuses : [],
-          sources: Array.isArray(data.sources) ? data.sources : [],
-          staff: Array.isArray(data.staff) ? data.staff : [],
+          statuses: Array.isArray(data.statuses)
+            ? data.statuses
+            : [],
+
+          sources: Array.isArray(data.sources)
+            ? data.sources
+            : [],
+
+          staff: Array.isArray(data.staff)
+            ? data.staff
+            : [],
+
+          interest_levels:
+            Array.isArray(data.interest_levels) &&
+            data.interest_levels.length > 0
+              ? data.interest_levels
+              : DEFAULT_INTEREST_LEVELS,
+
+          business_types:
+            Array.isArray(data.business_types) &&
+            data.business_types.length > 0
+              ? data.business_types
+              : DEFAULT_BUSINESS_TYPES,
+
+          converted_products:
+            Array.isArray(data.converted_products) &&
+            data.converted_products.length > 0
+              ? data.converted_products
+              : DEFAULT_CONVERTED_PRODUCTS,
         };
 
         setVars(safeData);
         setForm(createDefaultLeadForm(safeData));
 
-        setTimeout(() => firstInputRef.current?.focus(), 100);
+        setTimeout(() => {
+          companyInputRef.current?.focus();
+        }, 100);
       })
-      .catch((err) => {
-        console.error(err);
-        setError('Failed to load lead form data.');
+      .catch((requestError) => {
+        console.error(requestError);
+
+        setError(
+          requestError.message ||
+            'Failed to load lead form data.'
+        );
+
         setForm(createDefaultLeadForm());
       });
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const selectedStatus = vars.statuses.find(
+    (status) =>
+      String(status.id) === String(form.status_id)
+  );
+
+  const isConvertedStatus =
+    String(selectedStatus?.status_name || '')
+      .trim()
+      .toLowerCase() === 'converted';
+
   const updateField = (field, value) => {
-    setForm((prev) => ({
-      ...prev,
+    setForm((previous) => ({
+      ...previous,
       [field]: value,
     }));
+
+    setError('');
   };
 
-  const handleCountryChange = (e) => {
-    const selectedCountry = e.target.value;
-    const phonePrefix = COUNTRY_PHONE_PREFIX[selectedCountry] || '';
+  const handleCountryChange = (event) => {
+    const selectedCountry = event.target.value;
+    const nextPrefix =
+      COUNTRY_PHONE_PREFIX[selectedCountry] || '';
 
-    setForm((prev) => ({
-      ...prev,
-      country: selectedCountry,
-      phone: phonePrefix,
+    setForm((previous) => {
+      const previousPrefix =
+        COUNTRY_PHONE_PREFIX[previous.country] || '';
+
+      const currentPhone = String(
+        previous.phone || ''
+      ).trim();
+
+      const shouldReplacePrefix =
+        !currentPhone ||
+        currentPhone === previousPrefix;
+
+      return {
+        ...previous,
+        country: selectedCountry,
+        phone: shouldReplacePrefix
+          ? nextPrefix
+          : previous.phone,
+      };
+    });
+
+    setError('');
+  };
+
+  const handleStatusChange = (event) => {
+    const selectedStatusId = event.target.value;
+
+    const nextStatus = vars.statuses.find(
+      (status) =>
+        String(status.id) ===
+        String(selectedStatusId)
+    );
+
+    const nextStatusIsConverted =
+      String(nextStatus?.status_name || '')
+        .trim()
+        .toLowerCase() === 'converted';
+
+    setForm((previous) => ({
+      ...previous,
+      status_id: selectedStatusId,
+      converted_product: nextStatusIsConverted
+        ? previous.converted_product ||
+          vars.converted_products[0] ||
+          ''
+        : '',
     }));
+
+    setError('');
   };
 
-  const handleTagKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-
-      const cleanTag = tagInput.trim().replace(/,$/, '');
-
-      if (cleanTag && !tagChips.includes(cleanTag)) {
-        setTagChips((prev) => [...prev, cleanTag]);
-      }
-
-      setTagInput('');
+  const handleTagKeyDown = (event) => {
+    if (
+      event.key !== 'Enter' &&
+      event.key !== ','
+    ) {
+      return;
     }
+
+    event.preventDefault();
+
+    const cleanTag = tagInput
+      .trim()
+      .replace(/,$/, '');
+
+    if (
+      cleanTag &&
+      !tagChips.includes(cleanTag)
+    ) {
+      setTagChips((previous) => [
+        ...previous,
+        cleanTag,
+      ]);
+    }
+
+    setTagInput('');
   };
 
   const removeTagChip = (indexToRemove) => {
-    setTagChips((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setTagChips((previous) =>
+      previous.filter(
+        (_, index) => index !== indexToRemove
+      )
+    );
   };
 
   const resetForm = () => {
@@ -160,8 +476,8 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
     setError('');
   };
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (event) => {
+    event.preventDefault();
     setError('');
     setLoading(true);
 
@@ -169,11 +485,14 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
 
     const payload = {
       ...form,
+      converted_product: isConvertedStatus
+        ? form.converted_product
+        : '',
       tags: tagChips.join(','),
     };
 
     try {
-      const res = await fetch('/api/leads', {
+      const response = await fetch('/api/leads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,47 +501,53 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to save lead.');
+      if (!response.ok) {
+        throw new Error(
+          data.error || 'Failed to save lead.'
+        );
       }
 
-      onSaveSuccess?.();
+      onSaveSuccess?.(data);
       resetForm();
       onClose();
-    } catch (err) {
-      setError(err.message || 'Failed to save lead.');
+    } catch (submitError) {
+      setError(
+        submitError.message ||
+          'Failed to save lead.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const inputClass =
-    'w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10';
+    'w-full min-w-0 h-10 px-3 bg-white border border-slate-200 rounded-md text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10';
 
-  const labelClass = 'block text-sm font-medium text-slate-700 mb-1.5';
+  const textareaClass =
+    'w-full min-w-0 px-3 py-2.5 bg-white border border-slate-200 rounded-md text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10';
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-3">
       <div
-        className="absolute inset-0 bg-slate-900/50"
+        className="absolute inset-0 bg-slate-900/45"
         onClick={onClose}
       />
 
-      <div className="relative bg-white w-full max-w-3xl rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-[calc(100vh-48px)] flex flex-col animate-fade-in">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <FolderPlus size={17} />
+      <div className="relative w-full h-[100dvh] sm:h-auto sm:max-h-[calc(100dvh-24px)] sm:max-w-[1120px] bg-white sm:rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-fade-in">
+        <header className="px-4 sm:px-6 py-3.5 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 shrink-0 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <FolderPlus size={18} />
             </div>
 
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-900 truncate">
                 Add New Lead
               </h2>
 
-              <p className="text-sm text-slate-500">
+              <p className="text-xs sm:text-sm text-slate-500 truncate">
                 Create a new lead profile.
               </p>
             </div>
@@ -231,125 +556,482 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
           <button
             type="button"
             onClick={onClose}
-            className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Close Add Lead form"
+            className="h-9 w-9 shrink-0 rounded-lg text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600"
           >
-            <X size={18} />
+            <X size={19} />
           </button>
-        </div>
+        </header>
 
-        <form onSubmit={onSubmit} className="flex flex-col min-h-0">
-          <div className="p-6 overflow-y-auto space-y-6">
+        <form
+          onSubmit={onSubmit}
+          className="flex-1 min-h-0 flex flex-col"
+        >
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 sm:py-5 space-y-5">
             {error && (
-              <div className="px-4 py-3 bg-red-50 text-red-700 border border-red-100 rounded-lg text-sm">
+              <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-700">
                 {error}
               </div>
             )}
 
             <section>
-              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
-                Basic Information
-              </h3>
+              <SectionTitle
+                number="1"
+                title="Lead Information"
+              />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClass}>First Name *</label>
-
-                  <input
-                    ref={firstInputRef}
-                    type="text"
-                    required
-                    placeholder="Sarah"
-                    className={inputClass}
-                    value={form.first_name}
-                    onChange={(e) => updateField('first_name', e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass}>Last Name *</label>
-
-                  <input
-                    type="text"
-                    required
-                    placeholder="Chen"
-                    className={inputClass}
-                    value={form.last_name}
-                    onChange={(e) => updateField('last_name', e.target.value)}
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Company Name *</label>
+                  <FieldLabel required>
+                    Company Name
+                  </FieldLabel>
 
                   <input
+                    ref={companyInputRef}
                     type="text"
                     required
-                    placeholder="Acme Corp"
+                    placeholder="Enter company name"
                     className={inputClass}
                     value={form.company_name}
-                    onChange={(e) => updateField('company_name', e.target.value)}
+                    onChange={(event) =>
+                      updateField(
+                        'company_name',
+                        event.target.value
+                      )
+                    }
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Job Title</label>
+                <div>
+                  <FieldLabel required>
+                    Industry / Business Type
+                  </FieldLabel>
+
+                  <select
+                    required
+                    className={inputClass}
+                    value={form.business_type}
+                    onChange={(event) =>
+                      updateField(
+                        'business_type',
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Select industry / business type
+                    </option>
+
+                    {vars.business_types.map(
+                      (businessType) => (
+                        <option
+                          key={businessType}
+                          value={businessType}
+                        >
+                          {businessType}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <FieldLabel>
+                    Lead Source
+                  </FieldLabel>
+
+                  <select
+                    className={inputClass}
+                    value={form.source_id}
+                    onChange={(event) =>
+                      updateField(
+                        'source_id',
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Select lead source
+                    </option>
+
+                    {vars.sources.map((source) => (
+                      <option
+                        key={source.id}
+                        value={source.id}
+                      >
+                        {source.source_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <FieldLabel info>
+                    Interest Level
+                  </FieldLabel>
+
+                  <select
+                    className={inputClass}
+                    value={form.interest_level}
+                    onChange={(event) =>
+                      updateField(
+                        'interest_level',
+                        event.target.value
+                      )
+                    }
+                  >
+                    {vars.interest_levels.map(
+                      (level) => (
+                        <option
+                          key={level.value}
+                          value={level.value}
+                        >
+                          {level.label}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  <p className="mt-1 text-[11px] sm:text-xs leading-4 text-slate-400">
+                    Cold — little/no response, Warm —
+                    wants more information, Hot —
+                    interested in demo, pricing, or
+                    onboarding.
+                  </p>
+                </div>
+
+                <div>
+                  <FieldLabel>
+                    Lead Status
+                  </FieldLabel>
+
+                  <select
+                    className={inputClass}
+                    value={form.status_id}
+                    onChange={handleStatusChange}
+                  >
+                    <option value="">
+                      Select lead status
+                    </option>
+
+                    {vars.statuses.map((status) => (
+                      <option
+                        key={status.id}
+                        value={status.id}
+                      >
+                        {status.status_name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {isConvertedStatus && (
+                    <div className="mt-3">
+                      <FieldLabel required>
+                        Converted Product
+                      </FieldLabel>
+
+                      <select
+                        required
+                        className={inputClass}
+                        value={form.converted_product}
+                        onChange={(event) =>
+                          updateField(
+                            'converted_product',
+                            event.target.value
+                          )
+                        }
+                      >
+                        <option value="">
+                          Select converted product
+                        </option>
+
+                        {vars.converted_products.map(
+                          (product) => (
+                            <option
+                              key={product}
+                              value={product}
+                            >
+                              {product}
+                            </option>
+                          )
+                        )}
+                      </select>
+
+                      <p className="mt-1 text-[11px] sm:text-xs text-slate-400">
+                        Options: SnapServe Lite,
+                        SnapServe Full, Others
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="pt-4 border-t border-slate-200">
+              <SectionTitle
+                number="2"
+                title="Contact Person"
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+                <div>
+                  <FieldLabel>
+                    First Name
+                  </FieldLabel>
 
                   <input
                     type="text"
-                    placeholder="VP Marketing"
+                    placeholder="Enter first name"
                     className={inputClass}
-                    value={form.job_title}
-                    onChange={(e) => updateField('job_title', e.target.value)}
+                    value={form.first_name}
+                    onChange={(event) =>
+                      updateField(
+                        'first_name',
+                        event.target.value
+                      )
+                    }
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Email Address *</label>
+                <div>
+                  <FieldLabel>
+                    Last Name
+                  </FieldLabel>
 
                   <input
-                    type="email"
-                    required
-                    placeholder="sarah@acmecorp.com"
+                    type="text"
+                    placeholder="Enter last name"
                     className={inputClass}
-                    value={form.email}
-                    onChange={(e) => updateField('email', e.target.value)}
+                    value={form.last_name}
+                    onChange={(event) =>
+                      updateField(
+                        'last_name',
+                        event.target.value
+                      )
+                    }
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Phone Number</label>
+                <div>
+                  <FieldLabel>
+                    Job Title
+                  </FieldLabel>
+
+                  <input
+                    type="text"
+                    placeholder="Enter job title"
+                    className={inputClass}
+                    value={form.job_title}
+                    onChange={(event) =>
+                      updateField(
+                        'job_title',
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel>
+                    Phone Number
+                  </FieldLabel>
 
                   <input
                     type="text"
                     placeholder="+63 912 345 6789"
                     className={inputClass}
                     value={form.phone}
-                    onChange={(e) => updateField('phone', e.target.value)}
+                    onChange={(event) =>
+                      updateField(
+                        'phone',
+                        event.target.value
+                      )
+                    }
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Website</label>
+                <div>
+                  <FieldLabel required>
+                    Email Address
+                  </FieldLabel>
+
+                  <input
+                    type="email"
+                    required
+                    placeholder="Enter email address"
+                    className={inputClass}
+                    value={form.email}
+                    onChange={(event) =>
+                      updateField(
+                        'email',
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel>
+                    Website
+                  </FieldLabel>
 
                   <input
                     type="text"
-                    placeholder="www.acmecorp.com"
+                    placeholder="https://company.com"
                     className={inputClass}
                     value={form.website}
-                    onChange={(e) => updateField('website', e.target.value)}
+                    onChange={(event) =>
+                      updateField(
+                        'website',
+                        event.target.value
+                      )
+                    }
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Country</label>
+                  <FieldLabel optional>
+                    Facebook / Instagram / LinkedIn Page
+                  </FieldLabel>
+
+                 <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 items-center">
+  <SocialPlatformButtons />
+
+  <input
+    type="text"
+    placeholder="Paste social media page or profile URL"
+    className={inputClass}
+    value={form.social_media_url}
+    onChange={(event) =>
+      updateField(
+        'social_media_url',
+        event.target.value
+      )
+    }
+  />
+
+  {form.social_media_url.trim() && (
+    <a
+      href={normalizeExternalUrl(
+        form.social_media_url
+      )}
+      target="_blank"
+      rel="noreferrer"
+      className="col-span-2 sm:col-span-1 sm:col-start-2 h-10 px-4 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-sm font-semibold flex items-center justify-center hover:bg-blue-100"
+    >
+      Open Link
+    </a>
+  )}
+</div>
+
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Open a platform, copy the business
+                    page URL, then paste it here.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="pt-4 border-t border-slate-200">
+              <SectionTitle
+                number="3"
+                title="Address"
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-5 gap-y-3">
+                <div className="md:col-span-3">
+                  <FieldLabel optional>
+                    Complete Address
+                  </FieldLabel>
+
+                  <input
+                    type="text"
+                    placeholder="Enter complete address"
+                    className={inputClass}
+                    value={form.complete_address}
+                    onChange={(event) =>
+                      updateField(
+                        'complete_address',
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel optional>
+                    Barangay
+                  </FieldLabel>
+
+                  <input
+                    type="text"
+                    placeholder="Enter barangay"
+                    className={inputClass}
+                    value={form.barangay}
+                    onChange={(event) =>
+                      updateField(
+                        'barangay',
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel required>
+                    City
+                  </FieldLabel>
+
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter city"
+                    className={inputClass}
+                    value={form.city}
+                    onChange={(event) =>
+                      updateField(
+                        'city',
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel optional>
+                    Province
+                  </FieldLabel>
+
+                  <input
+                    type="text"
+                    placeholder="Enter province"
+                    className={inputClass}
+                    value={form.province}
+                    onChange={(event) =>
+                      updateField(
+                        'province',
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="md:col-span-3">
+                  <FieldLabel required>
+                    Country
+                  </FieldLabel>
 
                   <select
+                    required
                     className={inputClass}
                     value={form.country}
                     onChange={handleCountryChange}
                   >
                     {countries.map((country) => (
-                      <option key={country} value={country}>
+                      <option
+                        key={country}
+                        value={country}
+                      >
                         {country}
                       </option>
                     ))}
@@ -358,77 +1040,133 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
               </div>
             </section>
 
-            <section className="pt-5 border-t border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
-                Lead Details
-              </h3>
+            <section className="pt-4 border-t border-slate-200">
+              <SectionTitle
+                number="4"
+                title="CRM Details"
+              />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-5 gap-y-3">
                 <div>
-                  <label className={labelClass}>Lead Source</label>
-
-                  <select
-                    className={inputClass}
-                    value={form.source_id}
-                    onChange={(e) => updateField('source_id', e.target.value)}
-                  >
-                    <option value="">Select source</option>
-
-                    {vars.sources.map((source) => (
-                      <option key={source.id} value={source.id}>
-                        {source.source_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Status</label>
-
-                  <select
-                    className={inputClass}
-                    value={form.status_id}
-                    onChange={(e) => updateField('status_id', e.target.value)}
-                  >
-                    <option value="">Select status</option>
-
-                    {vars.statuses.map((status) => (
-                      <option key={status.id} value={status.id}>
-                        {status.status_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Assign To</label>
+                  <FieldLabel>
+                    Assigned To / Lead Owner
+                  </FieldLabel>
 
                   <select
                     className={inputClass}
                     value={form.assigned_user_id}
-                    onChange={(e) =>
-                      updateField('assigned_user_id', e.target.value)
+                    onChange={(event) =>
+                      updateField(
+                        'assigned_user_id',
+                        event.target.value
+                      )
                     }
                   >
-                    <option value="">Unassigned</option>
+                    <option value="">
+                      Select owner
+                    </option>
 
                     {vars.staff.map((staff) => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.first_name} {staff.last_name}
+                      <option
+                        key={staff.id}
+                        value={staff.id}
+                      >
+                        {staff.first_name}{' '}
+                        {staff.last_name}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                <div>
+                  <FieldLabel>
+                    Preferred Contact Method
+                  </FieldLabel>
+
+                  <select
+                    className={inputClass}
+                    value={
+                      form.preferred_contact_method
+                    }
+                    onChange={(event) =>
+                      updateField(
+                        'preferred_contact_method',
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Select preferred contact method
+                    </option>
+
+                    {PREFERRED_CONTACT_METHODS.map(
+                      (method) => (
+                        <option
+                          key={method}
+                          value={method}
+                        >
+                          {method}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <FieldLabel>
+                    Next Follow-up Date
+                  </FieldLabel>
+
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={form.next_follow_up_date}
+                    onChange={(event) =>
+                      updateField(
+                        'next_follow_up_date',
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
+
                 <div className="md:col-span-3">
-                  <label className={labelClass}>Tags</label>
+                  <FieldLabel optional>
+                    Notes
+                  </FieldLabel>
+
+                  <textarea
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Add notes or additional information about this lead..."
+                    className={`${textareaClass} resize-none`}
+                    value={form.notes}
+                    onChange={(event) =>
+                      updateField(
+                        'notes',
+                        event.target.value
+                      )
+                    }
+                  />
+
+                  <p className="mt-1 text-right text-[11px] text-slate-400">
+                    {form.notes.length}/1000
+                  </p>
+                </div>
+
+                <div className="md:col-span-3">
+                  <FieldLabel optional>
+                    Tags
+                  </FieldLabel>
 
                   <input
                     type="text"
-                    placeholder="SaaS, Enterprise, Q3-2026"
+                    placeholder="Type a tag and press Enter"
                     className={inputClass}
                     value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
+                    onChange={(event) =>
+                      setTagInput(event.target.value)
+                    }
                     onKeyDown={handleTagKeyDown}
                   />
 
@@ -436,14 +1174,17 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
                     <div className="flex flex-wrap gap-2 mt-2">
                       {tagChips.map((tag, index) => (
                         <span
-                          key={index}
+                          key={`${tag}-${index}`}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
                         >
                           {tag}
 
                           <button
                             type="button"
-                            onClick={() => removeTagChip(index)}
+                            onClick={() =>
+                              removeTagChip(index)
+                            }
+                            aria-label={`Remove ${tag}`}
                             className="hover:text-red-500"
                           >
                             <X size={12} />
@@ -457,11 +1198,11 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
             </section>
           </div>
 
-          <div className="px-6 py-4 border-t border-slate-200 bg-white flex flex-col sm:flex-row sm:justify-end gap-3 shrink-0">
+          <footer className="px-4 sm:px-6 py-3 shrink-0 bg-white border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="min-w-[140px] px-4 py-2.5 border border-slate-200 bg-white rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="w-full sm:w-auto sm:min-w-[115px] px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Cancel
             </button>
@@ -469,15 +1210,18 @@ export default function AddLeadModal({ isOpen, onClose, onSaveSuccess }) {
             <button
               type="submit"
               disabled={loading}
-              className="min-w-[160px] px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+              className="w-full sm:w-auto sm:min-w-[140px] px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
             >
               {loading ? 'Saving...' : 'Save Lead'}
             </button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
   );
 
-  return ReactDOM.createPortal(modalContent, document.body);
+  return ReactDOM.createPortal(
+    modalContent,
+    document.body
+  );
 }
